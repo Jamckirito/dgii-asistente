@@ -1,0 +1,11 @@
+{
+  "name": "dgii-asistente",
+  "private": true,
+  "workspaces": ["frontend"],
+  "scripts": {
+    "dev:frontend": "cd frontend && bun dev",
+    "dev:backend": "cd backend && fastapi dev main.py",
+    "build": "cd frontend && bun run build",
+    "install:all": "cd frontend && bun install"
+  }
+}
