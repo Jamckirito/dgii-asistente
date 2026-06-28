@@ -5,10 +5,11 @@ import { useDropzone } from "react-dropzone";
 import { Upload, FileText, Loader2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils/cn";
+import type { ExtractResponse } from "@/types/formulario-606";
 
 interface UploadZoneProps {
   formulario: "606" | "607" | "608" | "609";
-  onDataExtracted?: (data: unknown) => void;
+  onDataExtracted?: (data: ExtractResponse) => void;
 }
 
 type UploadState = "idle" | "uploading" | "processing" | "done" | "error";

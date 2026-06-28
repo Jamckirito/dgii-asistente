@@ -1,6 +1,6 @@
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from fastapi.responses import JSONResponse
-from services.claude_service import extract_606_from_file
+from services.gemini_service import extract_606_from_file
 from models.formulario_606 import ExtractResponse, Registro606
 import uuid
 
@@ -57,14 +57,28 @@ async def extract(
                 media_type=content_type,
             )
 
+            import json
+            print(f"--- RAW GEMINI RESPONSE FOR '{upload.filename}' ---")
+            print(json.dumps(resultado, indent=2))
+
             for reg_data in resultado.get("registros", []):
-                reg = Registro606(**reg_data)
-                todos_los_registros.append(reg)
+                try:
+                    reg = Registro606(**reg_data)
+                    todos_los_registros.append(reg)
+                except Exception as val_err:
+                    print(f"Validation error for record in {upload.filename}: {reg_data}")
+                    print(f"Error: {val_err}")
+                    todas_las_advertencias.append(
+                        f"Registro omitido en '{upload.filename}' por error de validación: {str(val_err)}"
+                    )
 
             todas_las_advertencias.extend(resultado.get("advertencias", []))
             archivos_procesados += 1
 
         except Exception as e:
+            import traceback
+            print(f"Error processing file '{upload.filename}': {e}")
+            traceback.print_exc()
             todas_las_advertencias.append(
                 f"Error procesando '{upload.filename}': {str(e)}"
             )

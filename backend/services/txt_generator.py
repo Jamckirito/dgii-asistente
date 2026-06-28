@@ -21,22 +21,29 @@ def generar_txt_606(
         campos = [
             rnc_empresa.ljust(11),
             periodo,                                      # YYYYMM
-            r.rnc_proveedor.ljust(11),
-            r.tipo_id,
-            r.ncf.ljust(19),
-            (r.ncf_modificado or "").ljust(19),
-            r.tipo_compra.zfill(2),
-            r.fecha_comprobante,
-            r.fecha_pago,
-            _fmt_monto(r.monto_bienes),
-            _fmt_monto(r.monto_servicios),
-            _fmt_monto(r.total_facturado),
-            _fmt_monto(r.itbis_facturado),
-            _fmt_monto(r.itbis_retenido),
-            _fmt_monto(r.itbis_proporcional),
-            _fmt_monto(r.costo_servicio),
-            _fmt_monto(r.bienes_capital),
-            _fmt_monto(r.gastos_sujetos),
+            r.rnc_proveedor.ljust(11),                    # Col 1: RNC/Cédula
+            r.tipo_id,                                    # Col 2: Tipo Id
+            r.tipo_compra.zfill(2),                       # Col 3: Tipo Compra
+            r.ncf.ljust(19),                              # Col 4: NCF
+            (r.ncf_modificado or "").ljust(19),           # Col 5: NCF Modificado
+            r.fecha_comprobante,                          # Col 6: F. Comprobante
+            (r.fecha_pago or "").ljust(8),                # Col 7: F. Pago
+            _fmt_monto(r.monto_servicios),                # Col 8: Monto Servicios
+            _fmt_monto(r.monto_bienes),                   # Col 9: Monto Bienes
+            _fmt_monto(r.total_facturado),                # Col 10: Total Facturado
+            _fmt_monto(r.itbis_facturado),                # Col 11: ITBIS Facturado
+            _fmt_monto(r.itbis_retenido),                 # Col 12: ITBIS Retenido
+            _fmt_monto(r.itbis_proporcional),             # Col 13: ITBIS Proporcional
+            _fmt_monto(r.itbis_costo),                    # Col 14: ITBIS Costo
+            _fmt_monto(r.itbis_adelantar),                # Col 15: ITBIS Adelantar
+            _fmt_monto(r.itbis_percibido),                # Col 16: ITBIS Percibido
+            (r.tipo_retencion_isr or "").ljust(1),        # Col 17: Tipo Retención ISR
+            _fmt_monto(r.monto_retencion_renta),          # Col 18: Retención ISR
+            _fmt_monto(r.isr_percibido),                  # Col 19: ISR Percibido
+            _fmt_monto(r.impuesto_selectivo),             # Col 20: ISC
+            _fmt_monto(r.otros_impuestos),                # Col 21: Otros Impuestos
+            _fmt_monto(r.propina_legal),                  # Col 22: Propina Legal
+            (r.forma_pago or "").ljust(1),                # Col 23: Forma de Pago
         ]
         lineas.append("|".join(campos))
 

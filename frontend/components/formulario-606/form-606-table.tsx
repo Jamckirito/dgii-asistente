@@ -1,55 +1,34 @@
 "use client";
 
-import { useState } from "react";
 import { Pencil, Trash2, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import type { Registro606 } from "@/types/formulario-606";
 
-// Datos de ejemplo para mostrar la estructura
-const DEMO: Registro606[] = [
-  {
-    id: "1",
-    rnc_proveedor: "130123456",
-    tipo_id: "1",
-    ncf: "B0100000001",
-    tipo_compra: "01",
-    fecha_comprobante: "20240115",
-    fecha_pago: "20240120",
-    monto_bienes: 15000,
-    monto_servicios: 0,
-    total_facturado: 15000,
-    itbis_facturado: 2700,
-    itbis_retenido: 0,
-    itbis_proporcional: 0,
-    costo_servicio: 0,
-    bienes_capital: 0,
-    gastos_sujetos: 0,
-    valido: true,
-  },
-];
+interface Form606TableProps {
+  registros: Registro606[];
+  onRegistrosChange: (registros: Registro606[]) => void;
+}
 
 const COLUMNS = [
-  { key: "rnc_proveedor",    label: "RNC/Cédula",       width: "w-32" },
-  { key: "ncf",              label: "NCF",               width: "w-36" },
-  { key: "tipo_compra",      label: "Tipo",              width: "w-16" },
-  { key: "fecha_comprobante",label: "F. Comprobante",    width: "w-32" },
-  { key: "fecha_pago",       label: "F. Pago",           width: "w-28" },
-  { key: "total_facturado",  label: "Total Fact.",       width: "w-28" },
-  { key: "itbis_facturado",  label: "ITBIS Fact.",       width: "w-24" },
-  { key: "itbis_retenido",   label: "ITBIS Ret.",        width: "w-24" },
+  { key: "rnc_proveedor",     label: "RNC/Cédula",      width: "w-32" },
+  { key: "ncf",               label: "NCF",              width: "w-36" },
+  { key: "tipo_compra",       label: "Tipo",             width: "w-16" },
+  { key: "fecha_comprobante", label: "F. Comprobante",   width: "w-32" },
+  { key: "fecha_pago",        label: "F. Pago",          width: "w-28" },
+  { key: "total_facturado",   label: "Total Fact.",      width: "w-28" },
+  { key: "itbis_facturado",   label: "ITBIS Fact.",      width: "w-24" },
+  { key: "itbis_retenido",    label: "ITBIS Ret.",       width: "w-24" },
 ];
 
-export function Form606Table() {
-  const [registros, setRegistros] = useState<Registro606[]>(DEMO);
-
+export function Form606Table({ registros, onRegistrosChange }: Form606TableProps) {
   function removeRow(id: string) {
-    setRegistros((prev) => prev.filter((r) => r.id !== id));
+    onRegistrosChange(registros.filter((r) => r.id !== id));
   }
 
   const totales = registros.reduce(
     (acc, r) => ({
-      total: acc.total + r.total_facturado,
-      itbis: acc.itbis + r.itbis_facturado,
+      total:    acc.total    + r.total_facturado,
+      itbis:    acc.itbis    + r.itbis_facturado,
       retenido: acc.retenido + r.itbis_retenido,
     }),
     { total: 0, itbis: 0, retenido: 0 }
@@ -73,9 +52,9 @@ export function Form606Table() {
       {/* Resumen rápido */}
       <div className="grid grid-cols-3 gap-3">
         {[
-          { label: "Total facturado", value: fmt(totales.total), color: "text-neutral-100" },
-          { label: "ITBIS facturado", value: fmt(totales.itbis), color: "text-blue-400" },
-          { label: "ITBIS retenido",  value: fmt(totales.retenido), color: "text-green-400" },
+          { label: "Total facturado", value: fmt(totales.total),    color: "text-neutral-100" },
+          { label: "ITBIS facturado", value: fmt(totales.itbis),    color: "text-blue-400"    },
+          { label: "ITBIS retenido",  value: fmt(totales.retenido), color: "text-green-400"   },
         ].map((s) => (
           <div key={s.label} className="bg-neutral-900 border border-neutral-800 rounded-lg p-4">
             <p className="text-xs text-neutral-500 mb-1">{s.label}</p>
@@ -118,7 +97,7 @@ export function Form606Table() {
                 <td className="px-3 py-2 font-mono text-xs text-neutral-300">{r.ncf}</td>
                 <td className="px-3 py-2 text-xs text-neutral-400">{r.tipo_compra}</td>
                 <td className="px-3 py-2 font-mono text-xs text-neutral-400">{r.fecha_comprobante}</td>
-                <td className="px-3 py-2 font-mono text-xs text-neutral-400">{r.fecha_pago}</td>
+                <td className="px-3 py-2 font-mono text-xs text-neutral-400">{r.fecha_pago ?? "—"}</td>
                 <td className="px-3 py-2 font-mono text-xs text-neutral-100 text-right">{fmt(r.total_facturado)}</td>
                 <td className="px-3 py-2 font-mono text-xs text-blue-400 text-right">{fmt(r.itbis_facturado)}</td>
                 <td className="px-3 py-2 font-mono text-xs text-green-400 text-right">{fmt(r.itbis_retenido)}</td>
@@ -148,3 +127,5 @@ export function Form606Table() {
     </div>
   );
 }
+
+

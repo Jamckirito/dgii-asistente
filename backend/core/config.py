@@ -3,7 +3,7 @@ from functools import lru_cache
 
 
 class Settings(BaseSettings):
-    anthropic_api_key: str
+    gemini_api_key: str
     supabase_url: str
     supabase_service_key: str
     environment: str = "development"

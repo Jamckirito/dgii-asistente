@@ -25,7 +25,7 @@ async def export_606_txt(body: ExportRequest):
         registros=body.registros,
     )
 
-    filename = f"606_{body.rnc_empresa}_{body.periodo}.txt"
+    filename = f"DGII_F_606_{body.rnc_empresa}_{body.periodo}.TXT"
 
     return PlainTextResponse(
         content=contenido,
