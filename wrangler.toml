@@ -1,0 +1,7 @@
+name = "dgii-smart-assistant"
+compatibility_date = "2024-09-23"
+
+[site]
+bucket = "./frontend/.next"
+
+workers_dev = true
