@@ -1,7 +1,10 @@
+import json
+import logging
 from google import genai
 from google.genai import types
-import json
 from core.config import get_settings
+
+logger = logging.getLogger(__name__)
 
 PROMPT_606 = """Eres un asistente contable especializado en formularios de la DGII de República Dominicana.
 
@@ -88,6 +91,19 @@ Reglas importantes:
 - En 'advertencias' añade notas sobre valores dudosos o campos incompletos hallados en el documento.
 """
 
+# Singleton — se crea una sola vez al importar el módulo
+_gemini_client: genai.Client | None = None
+
+
+def _get_client() -> genai.Client:
+    """Retorna el cliente Gemini singleton, creándolo si es necesario."""
+    global _gemini_client
+    if _gemini_client is None:
+        settings = get_settings()
+        _gemini_client = genai.Client(api_key=settings.gemini_api_key)
+        logger.info("Cliente Gemini inicializado")
+    return _gemini_client
+
 
 async def extract_606_from_file(
     file_bytes: bytes,
@@ -96,10 +112,9 @@ async def extract_606_from_file(
 ) -> dict:
     """
     Envía el archivo a Gemini y extrae los campos del Formato 606.
-    Soporta PDF e imágenes.
+    Soporta PDF e imágenes (JPEG, PNG, WEBP).
     """
-    settings = get_settings()
-    client = genai.Client(api_key=settings.gemini_api_key)
+    client = _get_client()
 
     # El SDK moderno de Gemini recibe Part.from_bytes para multimedia
     part = types.Part.from_bytes(
@@ -107,8 +122,7 @@ async def extract_606_from_file(
         mime_type=media_type,
     )
 
-    # Gemini 2.5 Flash es excelente para esto
-    # Se habilita response_mime_type="application/json" para asegurar que la respuesta sea JSON válido
+    # Gemini 2.5 Flash con response_mime_type="application/json" para JSON garantizado
     response = client.models.generate_content(
         model='gemini-2.5-flash',
         contents=[part, PROMPT_606],
