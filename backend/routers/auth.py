@@ -30,31 +30,37 @@ async def login(body: LoginRequest):
     Verifica credenciales contra public.users (contraseñas hasheadas con bcrypt/pgcrypto).
     Si son correctas, genera un token UUID, lo guarda en la columna `token` y lo devuelve.
     """
+    logger.info("[auth/login] Intento de login para email: %s", body.email)
+    logger.info("[auth/login] Usando Supabase URL: %s", settings.supabase_url)
     try:
-        # Verificar contraseña usando crypt() de pgcrypto a través de una consulta SQL raw
+        logger.info("[auth/login] Llamando a RPC 'verify_user_password' en Supabase...")
         result = (
             _supabase
             .rpc("verify_user_password", {"p_email": body.email, "p_password": body.password})
             .execute()
         )
+        logger.info("[auth/login] Supabase RPC respuesta data: %s", result.data)
     except Exception as e:
-        logger.error("Error al verificar contraseña: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail="Error interno al verificar credenciales.")
+        logger.error("[auth/login] Error al verificar contraseña en Supabase: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error en base de datos: {e}")
 
     # La función RPC devuelve una lista con un dict que contiene is_valid, username
     data = result.data
     if not data or not data[0].get("is_valid"):
+        logger.warning("[auth/login] Credenciales inválidas para: %s", body.email)
         raise HTTPException(status_code=401, detail="Correo o contraseña incorrectos.")
 
     username = data[0].get("username", "")
     new_token = str(uuid.uuid4()).replace("-", "")[:50]
 
+    logger.info("[auth/login] Usuario verificado. Actualizando token para %s...", body.email)
     # Guardar el token generado en public.users
     try:
-        _supabase.table("users").update({"token": new_token}).eq("email", body.email).execute()
+        update_res = _supabase.table("users").update({"token": new_token}).eq("email", body.email).execute()
+        logger.info("[auth/login] Supabase update respuesta data: %s", update_res.data)
     except Exception as e:
-        logger.error("Error al guardar token: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail="Error interno al crear sesión.")
+        logger.error("[auth/login] Error al guardar token en Supabase: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error interno al crear sesión: {e}")
 
     return LoginResponse(token=new_token, username=username, email=body.email)
 
