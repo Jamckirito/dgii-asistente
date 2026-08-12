@@ -2,43 +2,38 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createBrowserClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 
 export function LoginForm() {
-  const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const supabase = createBrowserClient();
 
   async function handleSubmit() {
     if (!email || !password) return;
     setLoading(true);
 
-    if (isSignUp) {
-      const { data, error } = await supabase.auth.signUp({ email, password });
-      if (error) {
-        toast.error(`Error de registro: ${error.message}`);
-      } else if (data.session) {
-        toast.success("¡Cuenta creada exitosamente!");
-        router.push("/formulario-606");
-        router.refresh();
-      } else {
-        toast.success("Cuenta registrada. Si se requiere confirmación, revisa tu correo o inicia sesión.");
-        setIsSignUp(false);
-      }
-    } else {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) {
-        toast.error("Credenciales incorrectas. Verifica tu correo y contraseña o crea una cuenta nueva.");
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        toast.error(data.error || "Credenciales incorrectas. Verifica tu correo y contraseña.");
       } else {
         router.push("/formulario-606");
         router.refresh();
       }
+    } catch {
+      toast.error("No se pudo conectar al servidor. Inténtalo de nuevo.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   const inputCls =
@@ -46,37 +41,18 @@ export function LoginForm() {
 
   return (
     <div className="space-y-4">
-      <div className="flex border-b border-neutral-800 pb-2 mb-2">
-        <button
-          type="button"
-          onClick={() => setIsSignUp(false)}
-          className={`flex-1 text-xs font-semibold py-1.5 transition-colors ${
-            !isSignUp ? "text-blue-400 border-b-2 border-blue-500" : "text-neutral-500 hover:text-neutral-300"
-          }`}
-        >
-          Iniciar sesión
-        </button>
-        <button
-          type="button"
-          onClick={() => setIsSignUp(true)}
-          className={`flex-1 text-xs font-semibold py-1.5 transition-colors ${
-            isSignUp ? "text-blue-400 border-b-2 border-blue-500" : "text-neutral-500 hover:text-neutral-300"
-          }`}
-        >
-          Crear cuenta
-        </button>
-      </div>
-
       <div>
         <label className="block text-xs font-medium text-neutral-400 mb-1.5">
           Correo electrónico
         </label>
         <input
+          id="login-email"
           type="email"
           placeholder="usuario@empresa.com"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           className={inputCls}
+          autoComplete="email"
         />
       </div>
       <div>
@@ -84,26 +60,23 @@ export function LoginForm() {
           Contraseña
         </label>
         <input
+          id="login-password"
           type="password"
           placeholder="••••••••"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
           className={inputCls}
+          autoComplete="current-password"
         />
       </div>
       <button
+        id="login-submit"
         onClick={handleSubmit}
         disabled={loading || !email || !password}
         className="w-full py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium text-sm transition-colors"
       >
-        {loading
-          ? isSignUp
-            ? "Creando cuenta..."
-            : "Ingresando..."
-          : isSignUp
-          ? "Registrarse"
-          : "Ingresar"}
+        {loading ? "Ingresando..." : "Ingresar"}
       </button>
     </div>
   );

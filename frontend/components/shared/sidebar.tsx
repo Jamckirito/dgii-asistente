@@ -6,7 +6,6 @@ import {
   FileText, History, Settings, LogOut, ChevronRight
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
-import { createBrowserClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 
 const NAV = [
@@ -29,11 +28,11 @@ const NAV = [
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const supabase = createBrowserClient();
 
   async function logout() {
-    await supabase.auth.signOut();
+    await fetch("/api/auth/logout", { method: "POST" });
     router.push("/login");
+    router.refresh();
   }
 
   return (

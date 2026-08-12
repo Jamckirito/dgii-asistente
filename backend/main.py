@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from core.config import get_settings
-from routers import extract, export
+from routers import extract, export, auth
 
 settings = get_settings()
 
@@ -22,6 +22,7 @@ app.add_middleware(
 )
 
 # Routers
+app.include_router(auth.router)
 app.include_router(extract.router)
 app.include_router(export.router)
 

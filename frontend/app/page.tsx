@@ -1,11 +1,11 @@
 import { redirect } from "next/navigation";
-import { createServerClient } from "@/lib/supabase/server";
+import { cookies } from "next/headers";
 
 export default async function HomePage() {
-  const supabase = await createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const cookieStore = await cookies();
+  const token = cookieStore.get("session_token")?.value;
 
-  if (user) {
+  if (token) {
     redirect("/formulario-606");
   } else {
     redirect("/login");

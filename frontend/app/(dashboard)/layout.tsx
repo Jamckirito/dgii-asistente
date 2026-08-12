@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { createServerClient } from "@/lib/supabase/server";
+import { cookies } from "next/headers";
 import { Sidebar } from "@/components/shared/sidebar";
 import { VersionAlert } from "@/components/shared/version-alert";
 
@@ -8,10 +8,10 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const cookieStore = await cookies();
+  const token = cookieStore.get("session_token")?.value;
 
-  if (!user) {
+  if (!token) {
     redirect("/login");
   }
 
