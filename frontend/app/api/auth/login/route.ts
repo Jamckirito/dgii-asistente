@@ -1,4 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+import { randomBytes } from "crypto";
+
+function getSupabaseAdmin() {
+  const url =
+    process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    process.env.SUPABASE_URL ||
+    "";
+  const key =
+    process.env.SUPABASE_SERVICE_KEY ||
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    "";
+
+  if (!url || !key) {
+    throw new Error("Supabase admin credentials are not configured.");
+  }
+
+  return createClient(url, key, {
+    auth: { persistSession: false },
+  });
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,26 +32,51 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const backendUrl =
-      process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+    const supabase = getSupabaseAdmin();
 
-    const res = await fetch(`${backendUrl}/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
+    // Verificar contraseña usando la función RPC con pgcrypto
+    const { data: rpcData, error: rpcError } = await supabase.rpc(
+      "verify_user_password",
+      { p_email: email, p_password: password }
+    );
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
+    if (rpcError) {
+      console.error("[auth/login] RPC error:", rpcError);
       return NextResponse.json(
-        { error: err.detail || "Credenciales incorrectas." },
-        { status: res.status }
+        { error: "Error al verificar credenciales. Intenta de nuevo." },
+        { status: 500 }
       );
     }
 
-    const { token, username } = await res.json();
+    const result = Array.isArray(rpcData) ? rpcData[0] : rpcData;
 
-    // Guardamos el token en una cookie httpOnly segura
+    if (!result || !result.is_valid) {
+      return NextResponse.json(
+        { error: "Correo o contraseña incorrectos." },
+        { status: 401 }
+      );
+    }
+
+    // Generar token de sesión (32 bytes hex = 64 chars)
+    const token = randomBytes(32).toString("hex");
+
+    // Guardar token en public.users
+    const { error: updateError } = await supabase
+      .from("users")
+      .update({ token })
+      .eq("email", email);
+
+    if (updateError) {
+      console.error("[auth/login] Update token error:", updateError);
+      return NextResponse.json(
+        { error: "Error interno al crear sesión." },
+        { status: 500 }
+      );
+    }
+
+    const username: string = result.username ?? "";
+
+    // Establecer cookie httpOnly con el token de sesión
     const response = NextResponse.json({ ok: true, username });
     response.cookies.set("session_token", token, {
       httpOnly: true,
@@ -42,7 +88,7 @@ export async function POST(request: NextRequest) {
 
     return response;
   } catch (err) {
-    console.error("[/api/auth/login]", err);
+    console.error("[auth/login] Unexpected error:", err);
     return NextResponse.json(
       { error: "Error interno del servidor." },
       { status: 500 }

@@ -1,18 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 
 export async function POST(request: NextRequest) {
   const token = request.cookies.get("session_token")?.value;
 
-  // Intentar invalidar el token en el backend (best effort)
+  // Invalidar token en la BD (best effort)
   if (token) {
-    const backendUrl =
-      process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
     try {
-      await fetch(`${backendUrl}/auth/logout?token=${encodeURIComponent(token)}`, {
-        method: "POST",
-      });
+      const url =
+        process.env.NEXT_PUBLIC_SUPABASE_URL ||
+        process.env.SUPABASE_URL ||
+        "";
+      const key =
+        process.env.SUPABASE_SERVICE_KEY ||
+        process.env.SUPABASE_SERVICE_ROLE_KEY ||
+        "";
+
+      if (url && key) {
+        const supabase = createClient(url, key, {
+          auth: { persistSession: false },
+        });
+        await supabase
+          .from("users")
+          .update({ token: "" })
+          .eq("token", token);
+      }
     } catch {
-      // Ignorar errores de red en logout
+      // Ignorar errores al invalidar — la cookie ya se borrará
     }
   }
 
