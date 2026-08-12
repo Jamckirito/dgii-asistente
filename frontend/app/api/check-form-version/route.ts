@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 
-export const dynamic = "force-static";
-
 const DGII_FORM_URLS: Record<string, string> = {
   "606": "https://dgii.gov.do/herramientas/formularios/formatoEnvioDatos/Documents/Formato606.zip",
   "607": "https://dgii.gov.do/herramientas/formularios/formatoEnvioDatos/Documents/Formato607.zip",
