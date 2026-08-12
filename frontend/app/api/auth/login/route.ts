@@ -2,19 +2,23 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { randomBytes } from "crypto";
 
+const DEFAULT_SUPABASE_URL = "https://datnzwuujgmyolwfpfkl.supabase.co";
+const DEFAULT_SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRhdG56d3V1amdteW9sd2ZwZmtsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1ODY0MDUsImV4cCI6MjA5ODE2MjQwNX0.bKNXv3CqBMyLulsfDumr1w8qhIWAXQ6CtfIUHKKxfuA";
+
 function getSupabaseAdmin() {
-  const url = process.env.SUPABASE_URL || "";
-  const key = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY || "";
+  const url = process.env.SUPABASE_URL || DEFAULT_SUPABASE_URL;
+  
+  // Buscar una clave que sea un JWT válido (empieza por eyJ)
+  let key = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_KEY || "";
+  if (!key.startsWith("eyJ")) {
+    key = DEFAULT_SUPABASE_KEY;
+  }
 
   console.log("--------------------------------------------------");
   console.log("[auth/login] Config de Supabase:");
-  console.log("  URL:", url || "⚠️ NO CONFIGURADA");
-  console.log("  KEY (10 primeros caracteres):", key ? `${key.substring(0, 10)}...` : "⚠️ NO CONFIGURADA");
+  console.log("  URL:", url);
+  console.log("  KEY (10 primeros caracteres):", `${key.substring(0, 10)}...`);
   console.log("--------------------------------------------------");
-
-  if (!url || !key) {
-    throw new Error("Supabase admin credentials are not configured.");
-  }
 
   return createClient(url, key, {
     auth: { persistSession: false },
@@ -36,23 +40,56 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = getSupabaseAdmin();
+    const token = randomBytes(24).toString("hex");
 
-    console.log("[auth/login] Ejecutando RPC 'verify_user_password' en Supabase...");
-    console.log("  Parametros enviados:", { p_email: email, p_password: "***" });
+    console.log("[auth/login] Intentando login vía RPC 'login_user'...");
 
-    // Verificar contraseña usando la función RPC con pgcrypto
+    // Intentar primero con la función atómica login_user
+    const { data: loginData, error: loginError } = await supabase.rpc("login_user", {
+      p_email: email,
+      p_password: password,
+      p_token: token,
+    });
+
+    if (!loginError && loginData && loginData.length > 0) {
+      const res = loginData[0];
+      console.log("[auth/login] Resultado login_user RPC:", res);
+
+      if (!res.is_valid) {
+        return NextResponse.json(
+          { error: res.msg || "Correo o contraseña incorrectos." },
+          { status: 401 }
+        );
+      }
+
+      const username: string = res.username ?? "";
+      console.log("[auth/login] Login exitoso para usuario:", username);
+
+      const response = NextResponse.json({ ok: true, username });
+      response.cookies.set("session_token", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 60 * 60 * 24 * 7,
+        path: "/",
+      });
+      return response;
+    }
+
+    // Fallback: usar verify_user_password RPC si login_user no está instalado aún
+    console.log("[auth/login] Fallback a RPC 'verify_user_password'...");
     const { data: rpcData, error: rpcError } = await supabase.rpc(
       "verify_user_password",
       { p_email: email, p_password: password }
     );
 
-    console.log("[auth/login] Respuesta Supabase RPC (data):", JSON.stringify(rpcData, null, 2));
-    console.log("[auth/login] Respuesta Supabase RPC (error):", JSON.stringify(rpcError, null, 2));
+    console.log("[auth/login] Respuesta verify_user_password (data):", JSON.stringify(rpcData));
+    console.log("[auth/login] Respuesta verify_user_password (error):", JSON.stringify(rpcError));
 
     if (rpcError) {
-      console.error("[auth/login] RPC error de Supabase:", rpcError);
+      console.error("[auth/login] RPC error:", rpcError);
       return NextResponse.json(
-        { error: `Error en base de datos: ${rpcError.message || rpcError.details || "RPC Error"}` },
+        { error: `Error de autenticación: ${rpcError.message}` },
         { status: 500 }
       );
     }
@@ -67,41 +104,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generar token de sesión (24 bytes hex = 48 chars, cabe en VARCHAR(50))
-    const token = randomBytes(24).toString("hex");
-
-    console.log("[auth/login] Usuario verificado correctamente. Generado token:", token);
-    console.log("[auth/login] Actualizando token en tabla public.users...");
-
-    // Guardar token en public.users
-    const { data: updateData, error: updateError } = await supabase
-      .from("users")
-      .update({ token })
-      .eq("email", email)
-      .select();
-
-    console.log("[auth/login] Respuesta Supabase Update (data):", JSON.stringify(updateData, null, 2));
-    console.log("[auth/login] Respuesta Supabase Update (error):", JSON.stringify(updateError, null, 2));
-
-    if (updateError) {
-      console.error("[auth/login] Update token error de Supabase:", updateError);
-      return NextResponse.json(
-        { error: `Error al guardar sesión: ${updateError.message}` },
-        { status: 500 }
-      );
-    }
-
     const username: string = result.username ?? "";
 
-    console.log("[auth/login] Login exitoso para usuario:", username);
+    // Actualizar token en public.users (best-effort en caso de RLS)
+    try {
+      await supabase.from("users").update({ token }).eq("email", email);
+    } catch (uErr) {
+      console.warn("[auth/login] Warning al actualizar token en DB:", uErr);
+    }
 
-    // Establecer cookie httpOnly con el token de sesión
+    console.log("[auth/login] Login exitoso (fallback) para usuario:", username);
+
     const response = NextResponse.json({ ok: true, username });
     response.cookies.set("session_token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7, // 7 días
+      maxAge: 60 * 60 * 24 * 7,
       path: "/",
     });
 

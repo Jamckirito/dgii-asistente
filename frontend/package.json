@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "bun --bun next dev",
-    "build": "node -e \"const fs=require('fs'); if(!fs.existsSync('public')) fs.mkdirSync('public', {recursive: true})\" && bun --bun next build",
-    "start": "bun --bun next start",
+    "dev": "next dev",
+    "build": "node -e \"const fs=require('fs'); if(!fs.existsSync('public')) fs.mkdirSync('public', {recursive: true})\" && next build",
+    "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit"
   },

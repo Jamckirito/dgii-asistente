@@ -3,9 +3,9 @@
   "private": true,
   "workspaces": ["frontend"],
   "scripts": {
-    "dev:frontend": "cd frontend && bun dev",
+    "dev:frontend": "cd frontend && npm run dev",
     "dev:backend": "cd backend && fastapi dev main.py",
-    "build": "cd frontend && bun run build",
-    "install:all": "cd frontend && bun install"
+    "build": "cd frontend && npm run build",
+    "install:all": "cd frontend && npm install"
   }
 }
