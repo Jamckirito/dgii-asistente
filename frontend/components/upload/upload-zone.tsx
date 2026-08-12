@@ -33,7 +33,7 @@ export function UploadZone({ formulario, onDataExtracted }: UploadZoneProps) {
         setState("processing");
 
         const res = await fetch(
-          `${process.env.NEXT_PUBLIC_BACKEND_URL}/extract`,
+          `${process.env.BACKEND_URL || ""}/extract`,
           { method: "POST", body: formData }
         );
 

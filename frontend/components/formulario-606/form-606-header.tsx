@@ -97,7 +97,7 @@ export function Form606Header({ registros }: Form606HeaderProps) {
     if (!puedeExportar) return;
     setExporting(true);
     try {
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8000";
+      const backendUrl = process.env.BACKEND_URL ?? "http://localhost:8000";
       const res = await fetch(`${backendUrl}/export/606/txt`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

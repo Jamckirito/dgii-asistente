@@ -7,14 +7,8 @@ export async function POST(request: NextRequest) {
   // Invalidar token en la BD (best effort)
   if (token) {
     try {
-      const url =
-        process.env.NEXT_PUBLIC_SUPABASE_URL ||
-        process.env.SUPABASE_URL ||
-        "";
-      const key =
-        process.env.SUPABASE_SERVICE_KEY ||
-        process.env.SUPABASE_SERVICE_ROLE_KEY ||
-        "";
+      const url = process.env.SUPABASE_URL || "";
+      const key = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY || "";
 
       if (url && key) {
         const supabase = createClient(url, key, {
