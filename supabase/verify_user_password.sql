@@ -19,5 +19,6 @@ BEGIN
 END;
 $$;
 
--- Asegura que la función sea accesible desde el backend con service_role
+-- Asegura que la función sea accesible desde el backend con service_role o la API
 GRANT EXECUTE ON FUNCTION public.verify_user_password(TEXT, TEXT) TO service_role;
+GRANT EXECUTE ON FUNCTION public.verify_user_password(TEXT, TEXT) TO anon, authenticated;

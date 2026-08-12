@@ -57,8 +57,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generar token de sesión (32 bytes hex = 64 chars)
-    const token = randomBytes(32).toString("hex");
+    // Generar token de sesión (24 bytes hex = 48 chars, cabe en VARCHAR(50))
+    const token = randomBytes(24).toString("hex");
 
     // Guardar token en public.users
     const { error: updateError } = await supabase
