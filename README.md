@@ -10,9 +10,9 @@ Asistente inteligente para la preparación y envío de formularios de la DGII (R
 | Package manager | Bun |
 | Backend | FastAPI + Python 3.12 |
 | Base de datos | Supabase (Postgres + RLS + Storage) |
-| IA | Claude API (Anthropic) |
-| Deploy frontend | Vercel |
-| Deploy backend | Railway |
+| IA | Google Gemini 2.5 Flash API |
+| Deploy frontend | Vercel / Cloudflare Pages / Docker |
+| Deploy backend | Railway / Render / Docker |
 
 ## Estructura del monorepo
 
@@ -20,7 +20,8 @@ Asistente inteligente para la preparación y envío de formularios de la DGII (R
 dgii-asistente/
 ├── frontend/       → Next.js 15
 ├── backend/        → FastAPI Python
-└── supabase/       → Migraciones y políticas RLS
+├── supabase/       → Migraciones y políticas RLS
+└── docker-compose.yml → Orquestación completa
 ```
 
 ## Inicio rápido
@@ -28,8 +29,7 @@ dgii-asistente/
 ### Requisitos
 - Bun >= 1.3
 - Python >= 3.12
-- Docker Desktop (para Supabase local)
-- Supabase CLI
+- Docker Desktop (opcional para desarrollo local en contenedores)
 
 ### 1. Clonar e instalar
 
@@ -57,43 +57,75 @@ cp frontend/.env.example frontend/.env.local
 cp backend/.env.example backend/.env
 ```
 
-Llena los valores en ambos archivos (ver sección Variables de entorno).
-
-### 3. Supabase local
-
-```bash
-supabase start
-supabase db push
-```
-
-### 4. Correr en desarrollo
+### 3. Correr en desarrollo
 
 ```bash
 # Terminal 1 — Frontend
 cd frontend && bun dev
 
 # Terminal 2 — Backend
-cd backend && fastapi dev main.py
+cd backend && uvicorn main:app --reload --port 8000
 ```
 
 Frontend: http://localhost:3000  
 Backend docs: http://localhost:8000/docs
 
+---
+
+## 🚀 Despliegue a Producción (Deployment)
+
+### Opción 1: Docker / Docker Compose (Recomendado para VPS / Servidor dedicado)
+
+Para desplegar la aplicación completa con una sola orden:
+
+```bash
+docker compose up -d --build
+```
+
+Esto compilará y levantará:
+- **Backend (FastAPI)** en el puerto `8000`
+- **Frontend (Next.js)** en el puerto `3000`
+
+### Opción 2: Vercel (Frontend) + Railway / Render (Backend)
+
+#### Despliegue del Backend (FastAPI) en Railway o Render:
+1. Conecta tu repositorio de GitHub a **Railway** o **Render**.
+2. Selecciona el subdirectorio `backend/` como raíz de trabajo.
+3. Configura el comando de inicio: `uvicorn main:app --host 0.0.0.0 --port $PORT`.
+4. Define las variables de entorno en el panel del proveedor:
+   - `GEMINI_API_KEY`
+   - `SUPABASE_URL`
+   - `SUPABASE_SERVICE_KEY`
+   - `ENVIRONMENT=production`
+   - `CORS_ORIGINS=https://tu-frontend.vercel.app`
+
+#### Despliegue del Frontend (Next.js) en Vercel:
+1. Importa el repositorio en **Vercel**.
+2. Selecciona la carpeta `frontend/` como Root Directory.
+3. Configura las variables de entorno de producción:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `NEXT_PUBLIC_BACKEND_URL=https://tu-backend.railway.app`
+4. Haz clic en **Deploy**.
+
+---
+
 ## Variables de entorno
 
 ### frontend/.env.local
-```
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://tu-proyecto.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=tu-anon-key
 NEXT_PUBLIC_BACKEND_URL=http://localhost:8000
 ```
 
 ### backend/.env
-```
-ANTHROPIC_API_KEY=
-SUPABASE_URL=
-SUPABASE_SERVICE_KEY=
+```env
+GEMINI_API_KEY=tu-gemini-api-key
+SUPABASE_URL=https://tu-proyecto.supabase.co
+SUPABASE_SERVICE_KEY=tu-service-role-key
 ENVIRONMENT=development
+CORS_ORIGINS=http://localhost:3000
 ```
 
 ## Formularios soportados
@@ -102,3 +134,4 @@ ENVIRONMENT=development
 - [ ] Formato 607 — Ventas con NCF *(próximamente)*
 - [ ] Formato 608 — NCF anulados *(próximamente)*
 - [ ] Formato 609 — Pagos al exterior *(próximamente)*
+
