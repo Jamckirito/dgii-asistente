@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "bun --bun next dev",
-    "build": "bun --bun next build",
+    "build": "node -e \"const fs=require('fs'); if(!fs.existsSync('public')) fs.mkdirSync('public', {recursive: true})\" && bun --bun next build",
     "start": "bun --bun next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit"
