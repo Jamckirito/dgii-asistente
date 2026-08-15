@@ -32,8 +32,9 @@ export function UploadZone({ formulario, onDataExtracted }: UploadZoneProps) {
 
         setState("processing");
 
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
         const res = await fetch(
-          `${process.env.BACKEND_URL || ""}/extract`,
+          `${backendUrl}/extract`,
           { method: "POST", body: formData }
         );
 

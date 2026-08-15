@@ -122,9 +122,9 @@ async def extract_606_from_file(
         mime_type=media_type,
     )
 
-    # Gemini 2.5 Flash con response_mime_type="application/json" para JSON garantizado
+    # Gemini 2.0 Flash con response_mime_type="application/json" para JSON garantizado
     response = client.models.generate_content(
-        model='gemini-2.5-flash',
+        model='gemini-2.0-flash',
         contents=[part, PROMPT_606],
         config=types.GenerateContentConfig(
             response_mime_type="application/json",
