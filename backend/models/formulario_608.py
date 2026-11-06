@@ -36,3 +36,4 @@ class Registro608(BaseModel):
 
         self.advertencias = adv
         return self
+

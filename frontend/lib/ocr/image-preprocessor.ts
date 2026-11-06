@@ -100,3 +100,4 @@ export async function fileToCanvas(file: File): Promise<HTMLCanvasElement> {
     img.src = url;
   });
 }
+

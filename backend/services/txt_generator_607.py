@@ -50,3 +50,4 @@ def generar_txt_607(
         lineas.append("|".join(campos))
 
     return "\r\n".join(lineas)
+

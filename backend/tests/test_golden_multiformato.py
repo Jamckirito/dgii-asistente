@@ -72,3 +72,4 @@ def test_generar_txt_609_golden():
     assert lineas == golden_lineas
     # Verificar que el detalle tenga 10 columnas
     assert len(lineas[1].split("|")) == 10
+

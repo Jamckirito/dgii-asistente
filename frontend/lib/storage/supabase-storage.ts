@@ -64,3 +64,4 @@ export async function obtenerUrlFirmada(storagePath: string): Promise<string> {
 
   return data.signedUrl;
 }
+

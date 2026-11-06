@@ -167,3 +167,4 @@ export interface Registro609 {
   valido: boolean;
   advertencias?: string[];
 }
+

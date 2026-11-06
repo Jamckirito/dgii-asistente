@@ -36,3 +36,4 @@ def generar_txt_609(
         lineas.append("|".join(campos))
 
     return "\r\n".join(lineas)
+

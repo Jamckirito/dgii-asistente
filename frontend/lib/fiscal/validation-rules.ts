@@ -118,3 +118,4 @@ export function evaluarEstadoRevision(score: number, esInvalido: boolean = false
   if (score >= 0.9) return "validado";
   return "pendiente_revision";
 }
+

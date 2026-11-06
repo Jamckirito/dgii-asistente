@@ -31,3 +31,4 @@ class Registro609(BaseModel):
     @classmethod
     def validar_montos(cls, v: Any) -> Decimal:
         return parse_decimal_tolerant(v)
+

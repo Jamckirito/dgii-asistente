@@ -222,3 +222,4 @@ CREATE POLICY "Permitir lectura a usuarios autenticados"
   ON storage.objects FOR SELECT
   TO authenticated
   USING (bucket_id = 'comprobantes-fiscales');
+

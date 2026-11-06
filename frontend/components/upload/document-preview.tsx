@@ -93,3 +93,4 @@ export function DocumentPreview({ file, fileUrl, className }: DocumentPreviewPro
     </div>
   );
 }
+

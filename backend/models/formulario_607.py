@@ -94,3 +94,4 @@ class Registro607(BaseModel):
 
         self.advertencias = adv
         return self
+

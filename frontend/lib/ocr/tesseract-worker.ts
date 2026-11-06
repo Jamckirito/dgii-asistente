@@ -66,3 +66,4 @@ export async function terminateTesseractWorker(): Promise<void> {
     sharedWorker = null;
   }
 }
+
