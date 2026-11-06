@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
+import { createServerClient } from "@/lib/supabase/server";
 import { Sidebar } from "@/components/shared/sidebar";
 import { VersionAlert } from "@/components/shared/version-alert";
 
@@ -8,10 +8,12 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("session_token")?.value;
+  const supabase = await createServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  if (!token) {
+  if (!user) {
     redirect("/login");
   }
 
@@ -20,9 +22,7 @@ export default async function DashboardLayout({
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <VersionAlert />
-        <main className="flex-1 overflow-y-auto p-6">
-          {children}
-        </main>
+        <main className="flex-1 overflow-y-auto p-6">{children}</main>
       </div>
     </div>
   );

@@ -1,7 +1,8 @@
 import json
 import logging
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends
 from fastapi.responses import JSONResponse
+from core.auth import get_current_user
 from services.gemini_service import extract_606_from_file
 from models.formulario_606 import ExtractResponse, Registro606
 
@@ -23,10 +24,12 @@ MAX_FILE_SIZE = 20 * 1024 * 1024  # 20 MB
 async def extract(
     files: list[UploadFile] = File(...),
     formulario: str = Form(default="606"),
+    current_user: dict = Depends(get_current_user),
 ):
     """
     Recibe uno o varios archivos (PDF, imágenes),
     los envía a Gemini y devuelve los campos del formulario extraídos.
+    Requiere autenticación válida de Supabase. El user_id se obtiene del token.
     """
     if formulario not in ("606", "607"):
         raise HTTPException(400, detail=f"Formulario '{formulario}' no soportado aún.")

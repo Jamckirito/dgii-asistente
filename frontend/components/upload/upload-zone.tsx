@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { Upload, FileText, Loader2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
+import { createBrowserClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils/cn";
 import type { ExtractResponse } from "@/types/formulario-606";
 
@@ -33,10 +34,19 @@ export function UploadZone({ formulario, onDataExtracted }: UploadZoneProps) {
         setState("processing");
 
         const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
-        const res = await fetch(
-          `${backendUrl}/extract`,
-          { method: "POST", body: formData }
-        );
+        const supabase = createBrowserClient();
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        const token = session?.access_token || "";
+
+        const res = await fetch(`${backendUrl}/extract`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+        });
 
         if (!res.ok) throw new Error("Error al procesar los archivos");
 

@@ -1,13 +1,27 @@
 import pytest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 from fastapi.testclient import TestClient
 from main import app
 
 client = TestClient(app)
+AUTH_HEADERS = {"Authorization": "Bearer test-token"}
+
+
+def test_extract_endpoint_unauthorized():
+    """Llamar a /extract sin cabecera de autorización debe retornar 401."""
+    files = {"files": ("factura.pdf", b"dummy", "application/pdf")}
+    response = client.post("/extract", files=files, data={"formulario": "606"})
+    assert response.status_code == 401
+
+
+def test_export_endpoint_unauthorized():
+    """Llamar a /export/606/txt sin token debe retornar 401."""
+    response = client.post("/export/606/txt", json={"rnc_empresa": "101000000", "periodo": "202607", "registros": []})
+    assert response.status_code == 401
+
 
 @patch("routers.extract.extract_606_from_file")
 def test_extract_endpoint_success(mock_extract):
-    # Mocking Gemini service response
     mock_extract.return_value = {
         "registros": [
             {
@@ -31,23 +45,22 @@ def test_extract_endpoint_success(mock_extract):
                 "impuesto_selectivo": 118.85,
                 "otros_impuestos": 23.77,
                 "propina_legal": 0.0,
-                "forma_pago": "4"
+                "forma_pago": "4",
             }
         ],
-        "advertencias": []
+        "advertencias": [],
     }
 
-    # Dummy file to send
     files = {"files": ("factura_wind.pdf", b"pdf_content_dummy", "application/pdf")}
     data = {"formulario": "606"}
 
-    response = client.post("/extract", files=files, data=data)
-    
+    response = client.post("/extract", files=files, data=data, headers=AUTH_HEADERS)
+
     assert response.status_code == 200
     json_data = response.json()
     assert json_data["archivos_procesados"] == 1
     assert len(json_data["registros"]) == 1
-    
+
     registro = json_data["registros"][0]
     assert registro["rnc_proveedor"] == "102315965"
     assert registro["ncf"] == "E320001295311"
@@ -56,13 +69,13 @@ def test_extract_endpoint_success(mock_extract):
     assert registro["impuesto_selectivo"] == 118.85
     assert registro["otros_impuestos"] == 23.77
 
+
 def test_extract_endpoint_unsupported_file():
-    # Send an unsupported file type
     files = {"files": ("factura_wind.txt", b"txt_content_dummy", "text/plain")}
     data = {"formulario": "606"}
 
-    response = client.post("/extract", files=files, data=data)
-    
+    response = client.post("/extract", files=files, data=data, headers=AUTH_HEADERS)
+
     assert response.status_code == 200
     json_data = response.json()
     assert json_data["archivos_procesados"] == 0

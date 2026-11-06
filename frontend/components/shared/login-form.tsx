@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { createBrowserClient } from "@/lib/supabase/client";
 
 export function LoginForm() {
   const [email, setEmail] = useState("");
@@ -15,22 +16,21 @@ export function LoginForm() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+      const supabase = createBrowserClient();
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
       });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        toast.error(data.error || "Credenciales incorrectas. Verifica tu correo y contraseña.");
+      if (error) {
+        toast.error(error.message || "Credenciales incorrectas. Verifica tu correo y contraseña.");
       } else {
         router.push("/formulario-606");
         router.refresh();
       }
-    } catch {
-      toast.error("No se pudo conectar al servidor. Inténtalo de nuevo.");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Error inesperado al conectar con el servidor.";
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -70,13 +70,14 @@ export function LoginForm() {
           autoComplete="current-password"
         />
       </div>
+
       <button
         id="login-submit"
         onClick={handleSubmit}
         disabled={loading || !email || !password}
-        className="w-full py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium text-sm transition-colors"
+        className="w-full py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors"
       >
-        {loading ? "Ingresando..." : "Ingresar"}
+        {loading ? "Iniciando sesión..." : "Iniciar sesión"}
       </button>
     </div>
   );

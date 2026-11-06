@@ -1,6 +1,7 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
+from core.auth import get_current_user
 from services.txt_generator import generar_txt_606
 from models.formulario_606 import Registro606
 
@@ -14,10 +15,14 @@ class ExportRequest(BaseModel):
 
 
 @router.post("/606/txt", response_class=PlainTextResponse)
-async def export_606_txt(body: ExportRequest):
+async def export_606_txt(
+    body: ExportRequest,
+    current_user: dict = Depends(get_current_user),
+):
     """
     Genera el archivo TXT del Formato 606
     listo para subir al portal de la DGII.
+    Requiere autenticación válida de Supabase. El user_id se valida desde el token.
     """
     contenido = generar_txt_606(
         rnc_empresa=body.rnc_empresa,

@@ -8,6 +8,8 @@ import {
 import { cn } from "@/lib/utils/cn";
 import { useRouter } from "next/navigation";
 
+import { createBrowserClient } from "@/lib/supabase/client";
+
 const NAV = [
   {
     group: "Formularios",
@@ -30,7 +32,12 @@ export function Sidebar() {
   const router = useRouter();
 
   async function logout() {
-    await fetch("/api/auth/logout", { method: "POST" });
+    try {
+      const supabase = createBrowserClient();
+      await supabase.auth.signOut();
+    } catch (e) {
+      console.error("Error signing out:", e);
+    }
     router.push("/login");
     router.refresh();
   }
