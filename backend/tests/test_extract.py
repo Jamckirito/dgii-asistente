@@ -64,10 +64,10 @@ def test_extract_endpoint_success(mock_extract):
     registro = json_data["registros"][0]
     assert registro["rnc_proveedor"] == "102315965"
     assert registro["ncf"] == "E320001295311"
-    assert registro["total_facturado"] == 1188.46
-    assert registro["itbis_adelantar"] == 213.92
-    assert registro["impuesto_selectivo"] == 118.85
-    assert registro["otros_impuestos"] == 23.77
+    assert str(registro["total_facturado"]) == "1188.46"
+    assert str(registro["itbis_adelantar"]) == "213.92"
+    assert str(registro["impuesto_selectivo"]) == "118.85"
+    assert str(registro["otros_impuestos"]) == "23.77"
 
 
 def test_extract_endpoint_unsupported_file():
