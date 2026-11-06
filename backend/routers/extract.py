@@ -1,8 +1,7 @@
-import json
 import logging
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends
-from fastapi.responses import JSONResponse
 from core.auth import get_current_user
+from core.rate_limit import extraction_rate_limiter
 from services.gemini_service import extract_606_from_file
 from models.formulario_606 import ExtractResponse, Registro606
 
@@ -20,6 +19,21 @@ ALLOWED_TYPES = {
 MAX_FILE_SIZE = 20 * 1024 * 1024  # 20 MB
 
 
+def detectar_mime_real(file_bytes: bytes) -> str | None:
+    """Verifica las cabeceras binarias (magic bytes) para validar el tipo real del archivo."""
+    if len(file_bytes) < 4:
+        return None
+    if file_bytes.startswith(b"%PDF"):
+        return "application/pdf"
+    if file_bytes.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if file_bytes.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    if len(file_bytes) >= 12 and file_bytes.startswith(b"RIFF") and file_bytes[8:12] == b"WEBP":
+        return "image/webp"
+    return None
+
+
 @router.post("", response_model=ExtractResponse)
 async def extract(
     files: list[UploadFile] = File(...),
@@ -28,26 +42,21 @@ async def extract(
 ):
     """
     Recibe uno o varios archivos (PDF, imágenes),
-    los envía a Gemini y devuelve los campos del formulario extraídos.
-    Requiere autenticación válida de Supabase. El user_id se obtiene del token.
+    valida el tipo MIME real mediante magic bytes, aplica rate limiting por usuario
+    y utiliza Gemini 2.5 Flash asíncrono con esquema Pydantic estructurado.
     """
     if formulario not in ("606", "607"):
         raise HTTPException(400, detail=f"Formulario '{formulario}' no soportado aún.")
+
+    # Rate limit por usuario
+    user_id = current_user.get("id", "anonymous")
+    extraction_rate_limiter.check(user_id)
 
     todos_los_registros: list[Registro606] = []
     todas_las_advertencias: list[str] = []
     archivos_procesados = 0
 
     for upload in files:
-        content_type = upload.content_type or "application/octet-stream"
-
-        if content_type not in ALLOWED_TYPES:
-            todas_las_advertencias.append(
-                f"'{upload.filename}' ignorado — tipo no soportado ({content_type}). "
-                "Usa PDF o imagen JPG/PNG/WEBP."
-            )
-            continue
-
         file_bytes = await upload.read()
 
         if len(file_bytes) > MAX_FILE_SIZE:
@@ -56,23 +65,40 @@ async def extract(
             )
             continue
 
+        real_mime = detectar_mime_real(file_bytes)
+        if not real_mime or real_mime not in ALLOWED_TYPES:
+            todas_las_advertencias.append(
+                f"'{upload.filename}' ignorado — tipo o contenido binario no soportado. "
+                "Usa documentos PDF o imágenes JPG/PNG/WEBP genuinas."
+            )
+            continue
+
         try:
             resultado = await extract_606_from_file(
                 file_bytes=file_bytes,
                 filename=upload.filename or "archivo",
-                media_type=content_type,
+                media_type=real_mime,
             )
 
-            logger.debug("Gemini extrajo %d registros de '%s'", len(resultado.get("registros", [])), upload.filename)
+            logger.debug(
+                "Gemini extrajo %d registros de '%s'",
+                len(resultado.get("registros", [])),
+                upload.filename,
+            )
 
             for reg_data in resultado.get("registros", []):
                 try:
                     reg = Registro606(**reg_data)
                     todos_los_registros.append(reg)
                 except Exception as val_err:
-                    logger.warning("Registro omitido en '%s': %s — datos: %s", upload.filename, val_err, reg_data)
+                    logger.warning(
+                        "Error al instanciar registro en '%s': %s — datos: %s",
+                        upload.filename,
+                        val_err,
+                        reg_data,
+                    )
                     todas_las_advertencias.append(
-                        f"Registro omitido en '{upload.filename}' por error de validación: {str(val_err)}"
+                        f"Advertencia en '{upload.filename}': {str(val_err)}"
                     )
 
             todas_las_advertencias.extend(resultado.get("advertencias", []))

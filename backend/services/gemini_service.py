@@ -1,102 +1,64 @@
 import json
 import logging
+from typing import Optional
+from pydantic import BaseModel, Field
 from google import genai
 from google.genai import types
 from core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
-PROMPT_606 = """Eres un asistente contable especializado en formularios de la DGII de República Dominicana.
+PROMPT_606 = """Eres un asistente contable especializado en formularios de la DGII de República Dominicana (Norma General 07-18).
+Del documento adjunto (factura o libro de compras), extrae con total precisión TODOS los registros de compras para el Formato 606.
 
-Del documento adjunto, extrae TODOS los registros de compras y devuelve ÚNICAMENTE un JSON válido con esta estructura exacta. NO incluyas texto adicional, ni marcadores de código.
-
-{
-  "registros": [
-    {
-      "rnc_proveedor": "string — RNC o cédula del proveedor (sin guiones ni espacios)",
-      "tipo_id": "string — '1' si es RNC (9 dígitos), '2' si es Cédula (11 dígitos)",
-      "tipo_compra": "string — código de clasificación de la compra del '01' al '11'",
-      "ncf": "string — ej: B0100000001 (sin espacios)",
-      "ncf_modificado": null,
-      "fecha_comprobante": "string — YYYYMMDD",
-      "fecha_pago": null,
-      "monto_servicios": 0.00,
-      "monto_bienes": 0.00,
-      "itbis_facturado": 0.00,
-      "itbis_retenido": 0.00,
-      "itbis_proporcional": 0.00,
-      "itbis_costo": 0.00,
-      "itbis_percibido": 0.00,
-      "tipo_retencion_isr": null,
-      "monto_retencion_renta": 0.00,
-      "isr_percibido": 0.00,
-      "impuesto_selectivo": 0.00,
-      "otros_impuestos": 0.00,
-      "propina_legal": 0.00,
-      "forma_pago": "string — código de la forma de pago del '1' al '7'"
-    }
-  ],
-  "advertencias": []
-}
-
-Reglas importantes:
-- rnc_proveedor: RNC o Cédula del proveedor. Limpia guiones y espacios.
-- tipo_id: "1" si es RNC, "2" si es Cédula.
-- tipo_compra: Clasifica la compra usando obligatoriamente uno de estos códigos:
-  * "01": Gastos de personal
-  * "02": Gastos por trabajos, suministros y servicios
-  * "03": Arrendamientos
-  * "04": Gastos de activos fijos
-  * "05": Gastos de representación
-  * "06": Otras deducciones admitidas
-  * "07": Gastos financieros
-  * "08": Gastos extraordinarios
-  * "09": Compras y gastos que formarán parte del costo de venta
-  * "10": Adquisiciones de activos
-  * "11": Gastos de seguros
-- ncf: Número de Comprobante Fiscal completo (11 o 13 posiciones alfanuméricas). Si empieza con 'E' es e-CF.
-- ncf_modificado: Solo si la factura es afectada por Nota de Crédito/Débito.
-- fecha_comprobante: Fecha de emisión en formato YYYYMMDD sin guiones.
-- fecha_pago: Fecha de pago en formato YYYYMMDD sin guiones (usar null si no se ha pagado o no se indica). Obligatoria si itbis_retenido > 0 o tipo_retencion_isr tiene valor o monto_retencion_renta > 0.
-- monto_servicios: Suma de montos de servicios facturados sin incluir ITBIS ni otros impuestos.
-- monto_bienes: Suma de montos de bienes facturados sin incluir ITBIS ni otros impuestos.
-- itbis_facturado: ITBIS total facturado.
-- itbis_retenido: ITBIS retenido si aplica.
-- itbis_proporcional: ITBIS sujeto a proporcionalidad (Art. 349).
-- itbis_costo: ITBIS llevado al costo directamente.
-- itbis_percibido: ITBIS percibido en compras.
-- tipo_retencion_isr: Código de retención de ISR si aplica (del 1 al 9):
-  * "1": Alquileres
-  * "2": Honorarios por servicios
-  * "3": Otras rentas
-  * "4": Otras rentas (rentas presuntas)
-  * "5": Intereses pagados a personas jurídicas residentes
-  * "6": Intereses pagados a personas físicas residentes
-  * "7": Retención por proveedores del Estado
-  * "8": Juegos telefónicos
-  * "9": Retenciones subsector de ganadería de carne bovina
-- monto_retencion_renta: Monto del ISR retenido.
-- isr_percibido: ISR percibido en compras.
-- impuesto_selectivo: Impuesto Selectivo al Consumo (ISC).
-- otros_impuestos: Otros impuestos o tasas.
-- propina_legal: Propina de ley (10%).
-- forma_pago: Código del método de pago utilizado (del 1 al 7):
-  * "1": Efectivo
-  * "2": Cheques/Transferencias/Depósito
-  * "3": Tarjeta crédito/débito
-  * "4": Compra a crédito
-  * "5": Permuta
-  * "6": Notas de crédito
-  * "7": Mixto
-- En 'advertencias' añade notas sobre valores dudosos o campos incompletos hallados en el documento.
+Reglas tributarias:
+- rnc_proveedor: RNC o Cédula sin guiones ni espacios.
+- tipo_id: '1' si es RNC (9 dígitos), '2' si es Cédula (11 dígitos).
+- tipo_compra: código de clasificación del '01' al '11' (01: Gastos de personal, 02: Gastos por trabajos/servicios, 03: Arrendamientos, 04: Activos fijos, 05: Representación, 06: Otras deducciones, 07: Financieros, 08: Extraordinarios, 09: Costo de venta, 10: Activos, 11: Seguros).
+- ncf: Número de comprobante fiscal completo (ej: B0100000001 o e-CF como E320000000001).
+- fecha_comprobante: formato YYYYMMDD.
+- fecha_pago: formato YYYYMMDD (obligatoria si hay ITBIS retenido o retención de ISR).
+- montos: extrae los valores numéricos exactos de servicios, bienes, ITBIS, retenciones, ISC, otros impuestos, propina legal y forma de pago (1: Efectivo, 2: Cheques/Transferencias, 3: Tarjeta, 4: Crédito).
+- En 'advertencias', añade cualquier nota sobre legibilidad, datos faltantes o incongruencias numéricas encontradas en el documento.
 """
 
-# Singleton — se crea una sola vez al importar el módulo
+
+class GeminiRegistro606Item(BaseModel):
+    rnc_proveedor: str = Field(description="RNC (9 dígitos) o Cédula (11 dígitos) del proveedor")
+    tipo_id: str = Field(description="'1' si es RNC o '2' si es Cédula")
+    tipo_compra: str = Field(description="Código del '01' al '11'")
+    ncf: str = Field(description="Número de Comprobante Fiscal completo (sin guiones)")
+    ncf_modificado: Optional[str] = Field(None, description="NCF modificado por nota de crédito/débito si aplica")
+    fecha_comprobante: str = Field(description="Fecha de emisión en formato YYYYMMDD")
+    fecha_pago: Optional[str] = Field(None, description="Fecha de pago en formato YYYYMMDD si aplica")
+    monto_servicios: str = Field(default="0.00", description="Monto Facturado en Servicios")
+    monto_bienes: str = Field(default="0.00", description="Monto Facturado en Bienes")
+    total_facturado: str = Field(default="0.00", description="Total Facturado (Bienes + Servicios)")
+    itbis_facturado: str = Field(default="0.00", description="ITBIS Facturado total")
+    itbis_retenido: str = Field(default="0.00", description="ITBIS Retenido si aplica")
+    itbis_proporcional: str = Field(default="0.00", description="ITBIS proporcional (Art. 349)")
+    itbis_costo: str = Field(default="0.00", description="ITBIS llevado al costo")
+    itbis_adelantar: str = Field(default="0.00", description="ITBIS a adelantar")
+    itbis_percibido: str = Field(default="0.00", description="ITBIS percibido en compras")
+    tipo_retencion_isr: Optional[str] = Field(None, description="Código de retención de ISR (1-9)")
+    monto_retencion_renta: str = Field(default="0.00", description="Monto de ISR retenido")
+    isr_percibido: str = Field(default="0.00", description="ISR percibido en compras")
+    impuesto_selectivo: str = Field(default="0.00", description="Impuesto Selectivo al Consumo (ISC)")
+    otros_impuestos: str = Field(default="0.00", description="Otros Impuestos y Tasas (CDT, etc.)")
+    propina_legal: str = Field(default="0.00", description="Monto de Propina Legal (10%)")
+    forma_pago: Optional[str] = Field(None, description="Código de forma de pago (1-7)")
+
+
+class Gemini606ExtractionResult(BaseModel):
+    registros: list[GeminiRegistro606Item]
+    advertencias: list[str] = Field(default_factory=list)
+
+
+# Singleton
 _gemini_client: genai.Client | None = None
 
 
 def _get_client() -> genai.Client:
-    """Retorna el cliente Gemini singleton, creándolo si es necesario."""
     global _gemini_client
     if _gemini_client is None:
         settings = get_settings()
@@ -111,25 +73,30 @@ async def extract_606_from_file(
     media_type: str,
 ) -> dict:
     """
-    Envía el archivo a Gemini y extrae los campos del Formato 606.
-    Soporta PDF e imágenes (JPEG, PNG, WEBP).
+    Envía el archivo a Gemini usando el cliente asíncrono no bloqueante (client.aio)
+    y response_schema garantizado por Pydantic.
     """
     client = _get_client()
 
-    # El SDK moderno de Gemini recibe Part.from_bytes para multimedia
     part = types.Part.from_bytes(
         data=file_bytes,
         mime_type=media_type,
     )
 
-    # Gemini 2.0 Flash con response_mime_type="application/json" para JSON garantizado
-    response = client.models.generate_content(
-        model='gemini-2.0-flash',
+    # Llamada asíncrona no bloqueante con esquema estructurado garantizado
+    response = await client.aio.models.generate_content(
+        model="gemini-2.5-flash",
         contents=[part, PROMPT_606],
         config=types.GenerateContentConfig(
             response_mime_type="application/json",
+            response_schema=Gemini606ExtractionResult,
+            temperature=0.0,
         ),
     )
 
+    if not response.text:
+        raise ValueError(f"Gemini no devolvió contenido de texto para '{filename}'.")
+
     raw = response.text.strip()
-    return json.loads(raw)
+    data = json.loads(raw)
+    return data
