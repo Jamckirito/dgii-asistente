@@ -1,8 +1,9 @@
--- =======================================================
--- DGII Asistente — Funciones RPC de Autenticación Supabase
--- =======================================================
+-- =============================================
+-- DGII Asistente — Funciones de autenticación seguras
+-- =============================================
 
--- 1. Función RPC para verificar contraseña
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 CREATE OR REPLACE FUNCTION public.verify_user_password(
     p_email TEXT,
     p_password TEXT
@@ -21,7 +22,6 @@ BEGIN
 END;
 $$;
 
--- 2. Función RPC para Login Atómico (Verifica y actualiza el token en 1 sola llamada)
 CREATE OR REPLACE FUNCTION public.login_user(
     p_email TEXT,
     p_password TEXT,
@@ -55,6 +55,7 @@ BEGIN
 END;
 $$;
 
--- Permisos de ejecución
-GRANT EXECUTE ON FUNCTION public.verify_user_password(TEXT, TEXT) TO service_role, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.login_user(TEXT, TEXT, TEXT) TO service_role, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.verify_user_password(TEXT, TEXT) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.login_user(TEXT, TEXT, TEXT) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.verify_user_password(TEXT, TEXT) TO service_role;
+GRANT EXECUTE ON FUNCTION public.login_user(TEXT, TEXT, TEXT) TO service_role;

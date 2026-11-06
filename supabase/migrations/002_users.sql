@@ -1,5 +1,5 @@
 -- =============================================
--- DGII Asistente — Tabla de Usuarios y RPC Auth
+-- DGII Asistente — Tabla de Usuarios y Funciones Auth (Seguras)
 -- =============================================
 
 -- Extension pgcrypto para encriptar/verificar contraseñas
@@ -11,19 +11,11 @@ CREATE TABLE IF NOT EXISTS public.users (
     email VARCHAR(512) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     token VARCHAR(50),
-    username VARCHAR(50) UNIQUE NOT NULL
+    username VARCHAR(50) UNIQUE NOT NULL,
+    creado_en TIMESTAMPTZ DEFAULT now()
 );
 
--- Seed de usuarios iniciales
-INSERT INTO public.users (email, password_hash, token, username)
-VALUES
-    ('stepbizarre21@gmail.com', crypt('katia258', gen_salt('bf')), '', 'laparita'),
-    ('nkatia.g3@gmail.com', crypt('*La_creta202', gen_salt('bf')), '', 'lamejor'),
-    ('jamckirigaya@gmail.com', crypt('Mendez21', gen_salt('bf')), '', 'kirito'),
-    ('edelcalmen@gmail.com', crypt('Edelcalmen', gen_salt('bf')), '', 'lic.contable')
-ON CONFLICT (email) DO NOTHING;
-
--- Función RPC para verificar contraseña
+-- Función RPC para verificar contraseña (Solo service_role)
 CREATE OR REPLACE FUNCTION public.verify_user_password(
     p_email TEXT,
     p_password TEXT
@@ -42,7 +34,7 @@ BEGIN
 END;
 $$;
 
--- Función RPC para login completo (Verifica contraseña y actualiza token)
+-- Función RPC para login completo (Solo service_role)
 CREATE OR REPLACE FUNCTION public.login_user(
     p_email TEXT,
     p_password TEXT,
@@ -76,16 +68,30 @@ BEGIN
 END;
 $$;
 
--- Permisos de ejecución
-GRANT EXECUTE ON FUNCTION public.verify_user_password(TEXT, TEXT) TO service_role, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.login_user(TEXT, TEXT, TEXT) TO service_role, anon, authenticated;
+-- Revocar cualquier acceso público / anónimo a las funciones de autenticación
+REVOKE EXECUTE ON FUNCTION public.verify_user_password(TEXT, TEXT) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.login_user(TEXT, TEXT, TEXT) FROM PUBLIC, anon, authenticated;
 
--- Habilitar RLS en public.users
+-- Asignar ejecución exclusivamente al rol de servicio
+GRANT EXECUTE ON FUNCTION public.verify_user_password(TEXT, TEXT) TO service_role;
+GRANT EXECUTE ON FUNCTION public.login_user(TEXT, TEXT, TEXT) TO service_role;
+
+-- Habilitar RLS estricto en public.users
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 
--- Políticas de RLS
+-- Limpiar políticas existentes
 DROP POLICY IF EXISTS "Acceso total service_role" ON public.users;
 DROP POLICY IF EXISTS "Permitir lectura anon para auth" ON public.users;
+DROP POLICY IF EXISTS "Acceso exclusivo service_role" ON public.users;
 
-CREATE POLICY "Acceso total service_role" ON public.users FOR ALL TO service_role USING (true) WITH CHECK (true);
-CREATE POLICY "Permitir lectura anon para auth" ON public.users FOR SELECT TO anon USING (true);
+-- Revocar permisos directos de tabla a anon y authenticated
+REVOKE ALL ON public.users FROM PUBLIC, anon, authenticated;
+GRANT ALL ON public.users TO service_role;
+
+-- Política: única y exclusivamente service_role tiene acceso a users
+CREATE POLICY "Acceso exclusivo service_role"
+ON public.users
+FOR ALL
+TO service_role
+USING (true)
+WITH CHECK (true);
