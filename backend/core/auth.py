@@ -54,3 +54,4 @@ def get_current_user(
             detail="Error al autenticar usuario contra el servicio de identidad.",
             headers={"WWW-Authenticate": "Bearer"},
         )
+

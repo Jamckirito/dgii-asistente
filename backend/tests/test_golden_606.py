@@ -64,3 +64,4 @@ def test_generar_txt_606_golden_file():
     for linea in resultado_lineas[1:]:
         columnas = linea.split("|")
         assert len(columnas) == 23, f"La fila debe tener 23 columnas, tiene {len(columnas)}: {linea}"
+

@@ -60,3 +60,4 @@ CREATE POLICY "usuario ve sus registros 606"
       WHERE e.user_id = auth.uid()
     )
   );
+

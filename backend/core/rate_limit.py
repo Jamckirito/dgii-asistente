@@ -35,3 +35,4 @@ class UserRateLimiter:
 
 # Instancia global del rate limiter para el backend
 extraction_rate_limiter = UserRateLimiter(max_requests=20, window_seconds=60)
+
