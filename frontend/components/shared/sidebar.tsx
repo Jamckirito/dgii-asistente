@@ -1,28 +1,52 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
-  FileText, History, Settings, LogOut, ChevronRight
+  FileText,
+  History,
+  Settings,
+  LogOut,
+  ChevronRight,
+  ShieldAlert,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
-import { useRouter } from "next/navigation";
-
 import { createBrowserClient } from "@/lib/supabase/client";
 
-const NAV = [
+interface NavItem {
+  href: string;
+  label: string;
+  sub: string;
+  icon: React.ComponentType<{ className?: string }>;
+  disabled?: boolean;
+}
+
+interface NavGroup {
+  group: string;
+  items: NavItem[];
+}
+
+const NAV: NavGroup[] = [
   {
-    group: "Formularios",
+    group: "Formularios DGII",
     items: [
       { href: "/formulario-606", label: "Formato 606", sub: "Compras", icon: FileText },
-      { href: "/formulario-607", label: "Formato 607", sub: "Ventas", icon: FileText, disabled: true },
+      { href: "/formulario-607", label: "Formato 607", sub: "Ventas", icon: FileText },
+      { href: "/formulario-608", label: "Formato 608", sub: "Anulados", icon: FileText },
+      { href: "/formulario-609", label: "Formato 609", sub: "Exterior", icon: FileText },
+    ],
+  },
+  {
+    group: "Procesamiento",
+    items: [
+      { href: "/revision", label: "Revisión Humana", sub: "Comprobantes pendientes", icon: ShieldAlert },
     ],
   },
   {
     group: "Registro",
     items: [
-      { href: "/historial", label: "Historial", sub: "Períodos anteriores", icon: History },
-      { href: "/configuracion", label: "Configuración", sub: "Empresa y cuenta", icon: Settings },
+      { href: "/historial", label: "Historial", sub: "Declaraciones previas", icon: History },
+      { href: "/configuracion", label: "Configuración", sub: "Empresa y RNC", icon: Settings },
     ],
   },
 ];
